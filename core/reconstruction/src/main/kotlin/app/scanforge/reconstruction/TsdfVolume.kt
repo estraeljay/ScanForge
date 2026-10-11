@@ -211,6 +211,25 @@ class TsdfVolume(
         return surface to strong
     }
 
+    /**
+     * Near-surface voxel centers for live preview: xyz triplets plus an evidence class per point
+     * ([EvidenceClass.STRONG] when observed by at least [strongObservations] frames). At most [maxPoints] points.
+     */
+    fun surfacePoints(maxPoints: Int, strongObservations: Int = 3): Pair<FloatArray, ByteArray> {
+        val xyz = ArrayList<Float>(); val cls = ArrayList<Byte>()
+        outer@ for ((key, b) in blocks) {
+            val bx = keyX(key); val by = keyY(key); val bz = keyZ(key)
+            for (i in 0 until N) {
+                if (b.weight[i] <= 0f || abs(b.tsdf[i]) >= 0.3f) continue
+                if (cls.size >= maxPoints) break@outer
+                val lx = i % B; val ly = (i / B) % B; val lz = i / (B * B)
+                xyz += ((bx * B + lx) * voxelSize).toFloat(); xyz += ((by * B + ly) * voxelSize).toFloat(); xyz += ((bz * B + lz) * voxelSize).toFloat()
+                cls += if ((b.observations[i].toInt() and 0xff) >= strongObservations) EvidenceClass.STRONG else EvidenceClass.WEAK
+            }
+        }
+        return xyz.toFloatArray() to cls.toByteArray()
+    }
+
     /** Writes the full volume state (for interrupted-reconstruction recovery). */
     fun save(out: DataOutputStream) {
         out.writeInt(CHECKPOINT_MAGIC)

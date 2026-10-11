@@ -56,3 +56,17 @@ class ScanWorkflowTest {
         assertEquals("not_enough_frames", doc.failureReason)
     }
 }
+
+class ThumbnailTest {
+    @Test fun rendersMeshPixelsAndLeavesBackgroundElsewhere() {
+        val m = app.scanforge.geometry.Mesh.fromVertices(
+            listOf(Vec3(0.0, 0.0, 0.0), Vec3(0.1, 0.0, 0.0), Vec3(0.0, 0.1, 0.0), Vec3(0.0, 0.0, 0.1)),
+            intArrayOf(0, 2, 1, 0, 1, 3, 0, 3, 2, 1, 2, 3),
+        )
+        val px = Thumbnail.render(m, 64)
+        val bg = 0xFF1B1E22.toInt()
+        val covered = px.count { it != bg }
+        assertTrue(covered in 200..3500, "covered $covered of 4096")
+        assertEquals(bg, px[0])
+    }
+}
