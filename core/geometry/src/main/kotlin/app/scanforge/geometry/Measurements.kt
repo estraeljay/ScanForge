@@ -82,19 +82,52 @@ object Measurements {
         return mean to c
     }
 
-    /** Oriented bounding box from the principal axes of the vertex distribution. */
+    /**
+     * Smallest box with one axis fixed to [up]: the footprint rectangle is found by sweeping the rotation about
+     * [up] (1° steps, then 0.05° refinement), which is exact to within the refinement step for the 2D minimum-area
+     * rectangle. Use with the support-plane normal for objects resting on a surface.
+     */
+    fun uprightBoundingBox(points: List<Vec3>, up: Vec3): Obb? {
+        if (points.isEmpty()) return null
+        val n = up.normalized()
+        val seed = if (kotlin.math.abs(n.x) < 0.9) Vec3.X else Vec3.Y
+        val e1 = (seed - n * (seed dot n)).normalized()
+        val e2 = n cross e1
+        fun extents(angle: Double): DoubleArray {
+            val u = e1 * kotlin.math.cos(angle) + e2 * kotlin.math.sin(angle)
+            val w = n cross u
+            var minU = Double.MAX_VALUE; var maxU = -Double.MAX_VALUE; var minW = Double.MAX_VALUE; var maxW = -Double.MAX_VALUE
+            for (p in points) {
+                val a = p dot u; val b = p dot w
+                if (a < minU) minU = a; if (a > maxU) maxU = a; if (b < minW) minW = b; if (b > maxW) maxW = b
+            }
+            return doubleArrayOf(minU, maxU, minW, maxW, (maxU - minU) * (maxW - minW))
+        }
+        var best = 0.0; var bestArea = Double.MAX_VALUE
+        for (deg in 0 until 90) { val a = Math.toRadians(deg.toDouble()); val e = extents(a)[4]; if (e < bestArea) { bestArea = e; best = a } }
+        var step = Math.toRadians(0.05); var a = best - Math.toRadians(1.0)
+        while (a <= best + Math.toRadians(1.0)) { val e = extents(a)[4]; if (e < bestArea) { bestArea = e; best = a }; a += step }
+        val u = e1 * kotlin.math.cos(best) + e2 * kotlin.math.sin(best)
+        val w = n cross u
+        val ex = extents(best)
+        var minN = Double.MAX_VALUE; var maxN = -Double.MAX_VALUE
+        for (p in points) { val h = p dot n; if (h < minN) minN = h; if (h > maxN) maxN = h }
+        val center = u * ((ex[0] + ex[1]) / 2) + w * ((ex[2] + ex[3]) / 2) + n * ((minN + maxN) / 2)
+        return Obb(center, Mat3.fromColumns(u, w, n), Vec3((ex[1] - ex[0]) / 2, (ex[3] - ex[2]) / 2, (maxN - minN) / 2))
+    }
+
+    /**
+     * Approximate minimum-volume oriented bounding box: tries each principal axis and each world axis as the
+     * fixed axis of [uprightBoundingBox] and keeps the smallest. Plain PCA boxes are often far from minimal.
+     */
     fun orientedBoundingBox(mesh: Mesh): Obb? {
         if (mesh.vertexCount == 0) return null
         val pts = (0 until mesh.vertexCount).map { mesh.vertex(it) }
         val (_, cov) = covariance(pts)
         val (_, vecs) = symmetricEigen(cov)
-        val axes = listOf(vecs.column(0).normalized(), vecs.column(1).normalized())
-        val a2 = (axes[0] cross axes[1]).normalized()
-        val basis = Mat3.fromColumns(axes[0], axes[1], a2)
-        val local = pts.map { basis.transpose() * it }
-        val lo = local.reduce(Vec3::min); val hi = local.reduce(Vec3::max)
-        val centerLocal = (lo + hi) * 0.5
-        return Obb(basis * centerLocal, basis, (hi - lo) * 0.5)
+        val candidates = listOf(vecs.column(0), vecs.column(1), vecs.column(2), Vec3.X, Vec3.Y, Vec3.Z)
+        return candidates.mapNotNull { uprightBoundingBox(pts, it) }
+            .minBy { it.halfExtents.x * it.halfExtents.y * it.halfExtents.z }
     }
 
     /**

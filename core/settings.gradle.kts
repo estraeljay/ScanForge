@@ -16,4 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "scanforge-core"
 
-include(":geometry", ":reconstruction", ":export", ":project", ":transfer", ":cli")
+include(":geometry", ":reconstruction", ":export", ":project", ":transfer", ":workflow", ":cli")

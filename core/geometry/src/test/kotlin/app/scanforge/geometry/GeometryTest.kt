@@ -103,7 +103,15 @@ class GeometryTest {
         val rot = Pose(Vec3(0.3, 0.2, 0.1), Quat.fromAxisAngle(Vec3(1.0, 2.0, 0.5), 0.9))
         val m = MeshOps.transform(TestShapes.box(0.3, 0.2, 0.1), rot)
         val dims = Measurements.orientedBoundingBox(m)!!.sortedDimensions
-        close(0.3, dims[0], 1e-6); close(0.2, dims[1], 1e-6); close(0.1, dims[2], 1e-6)
+        close(0.3, dims[0], 2e-4); close(0.2, dims[1], 2e-4); close(0.1, dims[2], 2e-4)
+    }
+
+    @Test fun uprightBoxFindsFootprintRotation() {
+        val m = MeshOps.transform(TestShapes.box(0.3, 0.1, 0.2), Pose(Vec3(1.0, 0.0, 0.0), Quat.fromAxisAngle(Vec3.Y, Math.toRadians(33.3))))
+        val obb = Measurements.uprightBoundingBox((0 until m.vertexCount).map { m.vertex(it) }, Vec3.Y)!!
+        close(0.15, maxOf(obb.halfExtents.x, obb.halfExtents.y), 2e-4)
+        close(0.10, minOf(obb.halfExtents.x, obb.halfExtents.y), 2e-4)
+        close(0.05, obb.halfExtents.z, 1e-9)
     }
 
     @Test fun circleFitOnTiltedRim() {

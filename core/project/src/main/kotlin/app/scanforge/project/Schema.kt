@@ -80,6 +80,8 @@ data class ReconstructionInfo(
     /** Coverage report as produced by the reconstruction module. */
     val coverage: JsonElement? = null,
     @SerialName("completed_at") val completedAt: String? = null,
+    /** Support plane detected during capture: [px, py, pz, nx, ny, nz] in model space, if any. */
+    @SerialName("support_plane") val supportPlane: List<Double>? = null,
 )
 
 /** One version of the model geometry. Version 1 is the untouched reconstruction output. */

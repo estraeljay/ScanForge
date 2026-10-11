@@ -17,6 +17,15 @@ data class IntegrationParams(
     val minConfidence: Double = 0.25,
     /** Use every n-th depth pixel when allocating blocks. Integration itself visits every voxel. */
     val allocationStride: Int = 1,
+    /**
+     * When enabled, pixels whose depth differs from a 4-neighbour by more than max(edgeAbsolute, edgeRelative·depth)
+     * are treated as occlusion boundaries and skipped. Off by default: on synthetic data it removed useful silhouette
+     * evidence and increased dimensional error (docs/validation/synthetic-accuracy.md). To be re-evaluated on real
+     * ARCore depth, which has "flying pixels" at edges.
+     */
+    val rejectDepthEdges: Boolean = false,
+    val edgeAbsolute: Double = 0.01,
+    val edgeRelative: Double = 0.03,
 )
 
 data class IntegrationStats(val validPixels: Int, val allocatedBlocks: Int, val updatedVoxels: Int)
@@ -96,6 +105,7 @@ class TsdfVolume(
                 s += step
             }
         }
+        val edge = if (params.rejectDepthEdges) depthEdgeMask(depth, params) else null
         // 2) Projective update of every voxel in every block that may be visible.
         // Camera from world: p_c = Rᵀ (p_w − t), written out with primitives for speed.
         val r00 = r[0, 0]; val r01 = r[0, 1]; val r02 = r[0, 2]
@@ -124,6 +134,7 @@ class TsdfVolume(
                 val ui = (k.fx * xc / dist + k.cx).roundToInt()
                 val vi = (k.cy - k.fy * yc / dist).roundToInt()
                 if (ui < 0 || vi < 0 || ui >= depth.width || vi >= depth.height) continue
+                if (edge != null && edge[vi * depth.width + ui]) continue
                 val measured = depth.depthMetersAt(ui, vi)
                 if (measured < params.minDepth || measured > params.maxDepth) continue
                 val conf = depth.confidenceAt(ui, vi)
@@ -132,7 +143,11 @@ class TsdfVolume(
                 if (sdf < -truncation) continue // occluded: behind the observed surface
                 val value = minOf(1.0, sdf / truncation).toFloat()
                 // Depth noise grows roughly quadratically with range, so down-weight far samples.
-                val w = (conf / (1.0 + measured * measured)).toFloat()
+                var w = (conf / (1.0 + measured * measured)).toFloat()
+                // Weight drop-off behind the surface: samples deep behind the observed surface are the least
+                // reliable (they bulge convex edges outward), so their weight falls linearly to zero at −truncation.
+                if (sdf < -voxelSize) w *= ((truncation + sdf) / (truncation - voxelSize)).toFloat()
+                if (w <= 0f) continue
                 val idx = (lz * B + ly) * B + lx
                 val w0 = block.weight[idx]
                 block.tsdf[idx] = (block.tsdf[idx] * w0 + value * w) / (w0 + w)
@@ -153,6 +168,24 @@ class TsdfVolume(
             }
         }
         return IntegrationStats(valid, allocated, updated)
+    }
+
+    private fun depthEdgeMask(depth: DepthFrame, params: IntegrationParams): BooleanArray {
+        val w = depth.width; val h = depth.height
+        val mask = BooleanArray(w * h)
+        for (v in 0 until h) for (u in 0 until w) {
+            val d = depth.depthMetersAt(u, v)
+            if (d <= 0) continue
+            val limit = maxOf(params.edgeAbsolute, params.edgeRelative * d)
+            for ((du, dv) in NEIGHBOURS) {
+                val x = u + du; val y = v + dv
+                if (x < 0 || y < 0 || x >= w || y >= h) continue
+                val n = depth.depthMetersAt(x, y)
+                // Invalid neighbours (0) are treated as a discontinuity too: depth holes often surround edges.
+                if (n <= 0 || kotlin.math.abs(n - d) > limit) { mask[v * w + u] = true; break }
+            }
+        }
+        return mask
     }
 
     /** Voxel accessor used by extraction; returns false when the voxel has never been observed. */
@@ -196,6 +229,7 @@ class TsdfVolume(
     companion object {
         const val B = 8
         const val N = B * B * B
+        private val NEIGHBOURS = arrayOf(1 to 0, -1 to 0, 0 to 1, 0 to -1)
         private const val CHECKPOINT_MAGIC = 0x53465456 // "SFTV"
         private const val OFF = 1 shl 20
         private const val MASK = (1L shl 21) - 1
