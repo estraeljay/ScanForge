@@ -49,6 +49,8 @@ ScanForge 3D developer CLI
   calibrate <store> <project-id> --measured <m> --reference <m>
         Record a known-length reference (both in meters) and rescale the model.
   package <store> <project-id> <out.sf3d> [--include-capture]
+  colmap <capture-dir> <out-dir>
+        Write keyframes + ARCore poses as a COLMAP text model for optional desktop photogrammetry.
   serve <state-dir> --offer <file.sf3d> [--name NAME] [--port 47821] [--bind 127.0.0.1]
         [--auto-approve] [--exit-after-receipt]
         Run the transfer server (same code as the phone) for testing the Blender add-on.
@@ -105,6 +107,10 @@ fun main(argv: Array<String>) {
             "export" -> export(args)
             "package" -> pack(args)
             "calibrate" -> calibrate(args)
+            "colmap" -> {
+                val r = app.scanforge.reconstruction.ColmapExport.export(File(args.pos(0, "capture-dir")), File(args.pos(1, "out-dir")))
+                println("Wrote ${r.images} images, ${r.cameras} camera(s) to ${r.dir}")
+            }
             "serve" -> serve(args)
             else -> fail("Unknown command ${argv[0]}")
         }
