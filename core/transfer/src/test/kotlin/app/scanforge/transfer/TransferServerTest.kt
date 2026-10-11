@@ -182,6 +182,8 @@ class TransferServerTest {
         val big = "x".repeat(Protocol.MAX_JSON_BODY + 1)
         server.setPairingOpen(true)
         assertEquals(413, c.request("POST", "/v1/pair", big).status)
+        // Larger than socket buffers: the server must drain the body before closing, or the client gets a broken pipe.
+        assertEquals(413, c.request("POST", "/v1/pair", "x".repeat(3_000_000)).status)
     }
 
     @Test fun discoveryAnswersBroadcastProbe() {

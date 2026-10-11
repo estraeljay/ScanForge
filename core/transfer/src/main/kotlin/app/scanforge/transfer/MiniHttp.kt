@@ -21,7 +21,8 @@ class HttpResponse(
     val streamLength: Long = 0,
 )
 
-class HttpProtocolException(val status: Int, message: String) : IOException(message)
+/** [drainBytes]: request body bytes still unread that the server should discard before closing (lingering close). */
+class HttpProtocolException(val status: Int, message: String, val drainBytes: Long = 0) : IOException(message)
 
 /** Minimal, bounded HTTP/1.1 codec used by the transfer server. */
 object MiniHttp {
@@ -56,7 +57,8 @@ object MiniHttp {
         }
         if (headers["transfer-encoding"] != null) throw HttpProtocolException(501, "Transfer-Encoding not supported")
         val length = headers["content-length"]?.toLongOrNull() ?: 0L
-        if (length < 0 || length > maxBody) throw HttpProtocolException(413, "Body too large")
+        if (length < 0) throw HttpProtocolException(400, "Invalid Content-Length")
+        if (length > maxBody) throw HttpProtocolException(413, "Body too large", drainBytes = length)
         val body = ByteArray(length.toInt())
         var read = 0
         while (read < body.size) {
@@ -71,6 +73,20 @@ object MiniHttp {
         200 -> "OK"; 202 -> "Accepted"; 204 -> "No Content"; 400 -> "Bad Request"; 401 -> "Unauthorized"; 403 -> "Forbidden"
         404 -> "Not Found"; 405 -> "Method Not Allowed"; 409 -> "Conflict"; 410 -> "Gone"; 413 -> "Payload Too Large"
         429 -> "Too Many Requests"; 431 -> "Request Header Fields Too Large"; 501 -> "Not Implemented"; else -> "Error"
+    }
+
+    /**
+     * Discards up to [max] bytes of an unread request body so the client can finish sending and read the error
+     * response, instead of hitting a broken pipe / reset when the server closes early.
+     */
+    fun drain(input: InputStream, bytes: Long, max: Long = 4L shl 20) {
+        var left = minOf(bytes, max)
+        val buf = ByteArray(16 * 1024)
+        while (left > 0) {
+            val n = input.read(buf, 0, minOf(buf.size.toLong(), left).toInt())
+            if (n < 0) return
+            left -= n
+        }
     }
 
     fun writeResponse(out: OutputStream, r: HttpResponse, keepAlive: Boolean) {

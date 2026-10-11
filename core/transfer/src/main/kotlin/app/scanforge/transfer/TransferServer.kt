@@ -134,7 +134,8 @@ class TransferServer(
             try {
                 while (true) {
                     val req = try { MiniHttp.readRequest(input, Protocol.MAX_JSON_BODY) } catch (e: HttpProtocolException) {
-                        MiniHttp.writeResponse(output, error(e.status, "bad_request", e.message ?: ""), false); return
+                        runCatching { MiniHttp.drain(input, e.drainBytes) }
+                        MiniHttp.writeResponse(output, error(e.status, if (e.status == 413) "too_large" else "bad_request", e.message ?: ""), false); return
                     } ?: return
                     val keepAlive = !req.header("connection").equals("close", ignoreCase = true)
                     val resp = try { route(req, address) } catch (e: Exception) {
