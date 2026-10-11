@@ -46,9 +46,6 @@ jobs:
       - run: gradle -p tools/android-framework-check compileKotlin
 
   android-build:
-    # The Android app has never been compiled (it was written without access to Google Maven).
-    # This job is informational until it has passed once; then remove continue-on-error.
-    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

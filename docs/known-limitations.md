@@ -1,8 +1,7 @@
 # Known limitations and troubleshooting
 
 ## Limitations (by design or not yet implemented)
-* **Untested on hardware.** The Android app has not been built or run in this environment (Google Maven was
-  unreachable). Only its framework-only files were type-checked.
+* **Untested on hardware.** The Android app compiles (CI builds a debug APK) but has not been run on a device.
 * **Accuracy is not established.** Only synthetic validation exists (docs/validation). Do not rely on scans for
   critical dimensions without calibration and physical verification.
 * Depth-from-motion phones produce noisy, low-resolution depth; thin parts (< ~3 voxels), sharp edges and fine detail

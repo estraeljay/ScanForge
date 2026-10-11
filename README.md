@@ -17,7 +17,7 @@ SHA-256-verified) to Blender, which imports it with correct scale and orientatio
 | Blender 5.2 extension: import of every format/axis/unit, metadata, mesh tools, transfer client against the real server, full operator flow, save/reload | ✅ tested headless with `bpy` 5.2.2 | `scripts/test_blender.sh` — 26 tests; zip installs via Blender's extension installer |
 | Desktop end-to-end: synthetic capture → reconstruct → package → TLS transfer → Blender import → verified dimensions | ✅ | `blender/tests/test_transfer.py`, `test_import.py` |
 | Android framework-only sources (GL, image conversion, AndroidKeyStore TLS, transfer manager/service, viewer) | ✅ type-checked against Android 15 framework classes | `tools/android-framework-check` |
-| Android ARCore capture, Compose UI, WorkManager | 🟡 written, **never compiled or run** | Google Maven/SDK unreachable here; see [docs/android/BUILD.md](docs/android/BUILD.md) |
+| Android app (ARCore capture, Compose UI, WorkManager) | 🟡 **compiles** (debug APK built in CI); never run on a device | CI `android-build`; see [docs/android/BUILD.md](docs/android/BUILD.md) |
 | Real-device scanning, real-world accuracy, AndroidKeyStore TLS on phones | ⬜ not tested | needs hardware: [testing plan §2–3](docs/testing-plan.md) |
 
 No accuracy figure is claimed for real scans.
@@ -81,5 +81,4 @@ $CLI serve /tmp/sf/phone --offer /tmp/sf/box.sf3d --bind 0.0.0.0
 ```
 
 ## Next milestone
-Build the Android app in Android Studio, fix any compile errors in the ARCore/Compose files, and run Phase 1 on one
-Depth API device (scan → reconstruct → send to Blender), then execute the physical accuracy protocol.
+Install the CI-built debug APK (artifact `app-debug-apk`) and run Phase 1 on one Depth API device (scan → reconstruct → send to Blender), then execute the physical accuracy protocol.

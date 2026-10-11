@@ -9,8 +9,8 @@ Feasibility report, ADRs 0001–0003, protocol and data specs, dependency/licenc
 ## Phase 1 — Android scanning proof of concept 🟡
 Capability detection, ARCore session (raw depth, plane finding, light estimation), keyframe capture to the crash-safe
 capture format, HUD with measured tracking/coverage/storage, pause/resume/undo/finish. All algorithms it relies on
-(capture format, keyframe selection, live fusion, coverage, guidance) are ✅ in core. **Next milestone: build in
-Android Studio and run on one Depth API phone; fix compile errors in the ARCore/Compose files.**
+(capture format, keyframe selection, live fusion, coverage, guidance) are ✅ in core. The app compiles in CI.
+**Next milestone: install the CI debug APK on one Depth API phone and run scan → reconstruct → send to Blender.**
 
 ## Phase 2 — Reconstruction and measurements ✅ core / 🟡 app
 Sparse TSDF + Surface Nets, cleanup, coverage, checkpoints; measurements (distance, AABB, upright and minimal oriented

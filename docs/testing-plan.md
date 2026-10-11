@@ -6,7 +6,7 @@
 | Core (geometry, reconstruction, export, project, transfer, workflow) | `cd core && gradle test` | 44 | JDK 17+ | **pass** |
 | Blender add-on (package, import, mesh tools, transfer vs. real server) | `scripts/test_blender.sh <python-with-bpy>` | 26 | `pip install bpy==5.2.2` (Python 3.13) or Blender 5.2's Python | **pass** |
 | Android framework subset type-check | `cd tools/android-framework-check && gradle compileKotlin` | 13 files | JDK 17+, Maven Central | **pass** |
-| Android full build + unit/instrumented tests | `cd android && ./gradlew assembleDebug test` | — | Android Studio / SDK 35, Google Maven | **not run** (Google Maven unreachable here) |
+| Android build | `gradle -p android :app:assembleDebug` | — | Android SDK 35, Google Maven (CI) | **pass in CI**; not run on a device |
 
 What the automated suites cover: unit conversion; pose math; area/volume/topology; component cleanup;
 simplification; ray picking; minimal boxes; circle fit; cross-sections; confidence rules; depth codec; crash-tolerant
