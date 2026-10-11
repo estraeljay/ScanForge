@@ -32,6 +32,7 @@ import app.scanforge.android.ui.home.HomeScreen
 import app.scanforge.android.ui.measurements.MeasurementsScreen
 import app.scanforge.android.ui.projects.ProjectDetailScreen
 import app.scanforge.android.ui.projects.ProjectsScreen
+import app.scanforge.android.ui.scan.MarkerScanScreen
 import app.scanforge.android.ui.scan.NewScanScreen
 import app.scanforge.android.ui.scan.ReconstructionScreen
 import app.scanforge.android.ui.scan.ScanScreen
@@ -51,6 +52,7 @@ private val sections = listOf(
 
 object Routes {
     fun scan(projectId: String, mode: String, preset: String, category: String) = "scan/$projectId?mode=$mode&preset=$preset&category=$category"
+    fun markerScan(projectId: String, preset: String, board: String) = "markerScan/$projectId?preset=$preset&board=$board"
     fun reconstruct(projectId: String) = "reconstruct/$projectId"
     fun project(projectId: String) = "project/$projectId"
 }
@@ -97,6 +99,14 @@ fun ScanForgeNavHost() {
                         navArgument("category") { type = NavType.StringType; defaultValue = "OTHER" },
                     ),
                 ) { ScanScreen(nav) }
+                composable(
+                    "markerScan/{projectId}?preset={preset}&board={board}",
+                    arguments = listOf(
+                        navArgument("projectId") { type = NavType.StringType },
+                        navArgument("preset") { type = NavType.StringType; defaultValue = "STANDARD" },
+                        navArgument("board") { type = NavType.StringType; defaultValue = "SFB1-A2-40-10" },
+                    ),
+                ) { MarkerScanScreen(nav) }
                 composable("reconstruct/{projectId}") { ReconstructionScreen(nav) }
                 composable("project/{projectId}") { ProjectDetailScreen(nav) }
             }

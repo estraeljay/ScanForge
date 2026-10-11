@@ -23,7 +23,11 @@ import java.util.EnumSet
 enum class ArCoreState { SUPPORTED_INSTALLED, NEEDS_INSTALL_OR_UPDATE, UNSUPPORTED, CHECKING, UNKNOWN_ERROR }
 
 /** Recommended capture mode given what the device can actually do. */
-enum class ScanSupport { DEPTH_SCANNING, PHOTO_CAPTURE_ONLY, NOT_SUPPORTED }
+/**
+ * What scanning the device supports. Marker-board scanning only needs a rear camera, so every device with one can scan;
+ * ARCore depth is an additional option where available.
+ */
+enum class ScanSupport { DEPTH_SCANNING, MARKER_SCANNING, NOT_SUPPORTED }
 
 data class CameraInfo(
     val hasBackCamera: Boolean,
@@ -54,15 +58,16 @@ data class DeviceReport(
 ) {
     val support: ScanSupport get() = when {
         arCore == ArCoreState.SUPPORTED_INSTALLED && depthApi == true -> ScanSupport.DEPTH_SCANNING
-        arCore == ArCoreState.SUPPORTED_INSTALLED || arCore == ArCoreState.NEEDS_INSTALL_OR_UPDATE -> ScanSupport.PHOTO_CAPTURE_ONLY
+        camera.hasBackCamera -> ScanSupport.MARKER_SCANNING
         else -> ScanSupport.NOT_SUPPORTED
     }
 
+    val arcoreDepthAvailable get() = arCore == ArCoreState.SUPPORTED_INSTALLED && depthApi == true
+
     /** Human-readable limitations derived only from measured facts. */
     fun warnings(): List<String> = buildList {
-        if (arCore == ArCoreState.UNSUPPORTED) add("This device is not supported by Google Play Services for AR; scanning is unavailable. Projects, measurements and transfer still work.")
-        if (arCore == ArCoreState.NEEDS_INSTALL_OR_UPDATE) add("Google Play Services for AR must be installed or updated before scanning.")
-        if (depthApi == false) add("The ARCore Depth API is not supported: on-device 3D reconstruction is unavailable. Photo capture for optional desktop processing is still possible.")
+        if (!camera.hasBackCamera) add("No rear camera found: scanning is unavailable. Projects, measurements and transfer still work.")
+        if (arCore != ArCoreState.SUPPORTED_INSTALLED || depthApi != true) add("ARCore depth scanning is not available on this device. Use marker-board scanning: print the board and place the object on it.")
         if (!camera.autofocus) add("The rear camera has a fixed focus; keep objects at least 30 cm away.")
         if (lowRamDevice || totalRamBytes < 3L shl 30) add("Limited memory: use the Draft quality preset.")
         if (freeStorageBytes < 500L shl 20) add("Less than 500 MB of free storage; a scan may not fit.")

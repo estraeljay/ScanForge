@@ -32,6 +32,8 @@ import app.scanforge.reconstruction.ReconstructionFailure
 import app.scanforge.reconstruction.Stage
 
 private val stageLabels = listOf(
+    Stage.TRACKING to "Camera positions from the board (marker scans)",
+    Stage.MATCHING to "Match photos (multi-view stereo, marker scans)",
     Stage.VALIDATING to "Validate captured data",
     Stage.INTEGRATING to "Fuse depth frames",
     Stage.EXTRACTING to "Extract surface",

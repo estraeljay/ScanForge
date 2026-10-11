@@ -20,6 +20,8 @@ android {
         resValue("string", "app_name", appName)
         buildConfigField("String", "APP_NAME", "\"$appName\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // OpenCV ships native code for four ABIs (~150 MB); phones need only the ARM ones.
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
 
     buildTypes {
@@ -47,6 +49,12 @@ dependencies {
     implementation("app.scanforge.core:workflow")
     implementation("app.scanforge.core:transfer")
     implementation(libs.arcore)
+    // Marker-board scanning without ARCore: CameraX for frames, OpenCV (Apache-2.0) for ArUco detection only.
+    implementation(libs.camerax.core)
+    implementation(libs.camerax.camera2)
+    implementation(libs.camerax.lifecycle)
+    implementation(libs.camerax.view)
+    implementation(libs.opencv)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.navigation.compose)

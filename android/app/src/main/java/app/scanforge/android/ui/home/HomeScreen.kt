@@ -90,8 +90,8 @@ fun HomeScreen(nav: NavController, vm: HomeViewModel = viewModel()) {
             if (r == null) StatusChip(Status.NEUTRAL, "Checking device…")
             else {
                 when (r.support) {
-                    ScanSupport.DEPTH_SCANNING -> StatusChip(Status.GOOD, "Depth scanning supported")
-                    ScanSupport.PHOTO_CAPTURE_ONLY -> StatusChip(Status.WARN, "Photo capture only (no on-device 3D)")
+                    ScanSupport.DEPTH_SCANNING -> StatusChip(Status.GOOD, "ARCore depth and marker-board scanning")
+                    ScanSupport.MARKER_SCANNING -> StatusChip(Status.GOOD, "Marker-board scanning (no ARCore needed)")
                     ScanSupport.NOT_SUPPORTED -> StatusChip(Status.BAD, "Scanning not supported on this device")
                 }
                 KeyValue("Device", r.model)
