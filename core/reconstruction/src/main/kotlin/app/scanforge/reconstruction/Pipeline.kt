@@ -10,7 +10,7 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
 
-enum class Stage { VALIDATING, INTEGRATING, EXTRACTING, CLEANING, ANALYZING, DONE }
+enum class Stage { VALIDATING, TRACKING, MATCHING, INTEGRATING, EXTRACTING, CLEANING, ANALYZING, DONE }
 
 /** Progress is reported per real processing unit (frames, blocks), never by timer. */
 data class Progress(val stage: Stage, val completed: Int, val total: Int, val message: String)
@@ -44,6 +44,14 @@ enum class ReconstructionFailure(val userMessage: String, val recovery: List<Str
         "No surface could be reconstructed from the captured data.",
         listOf("Check that the scan region contains the object.", "Rescan with more overlap and steadier motion."),
     ),
+    BOARD_NOT_FOUND(
+        "The marker board was not found in enough photos to compute camera positions.",
+        listOf("Keep most of the board visible in every photo.", "Print the board at 100 % and keep it flat; avoid glare on glossy paper."),
+    ),
+    NO_STEREO_MATCHES(
+        "No reliable 3D points could be matched between photos.",
+        listOf("Use even, bright light without strong shadows.", "Objects need visible surface texture; plain, shiny or transparent surfaces cannot be matched."),
+    ),
     OUT_OF_MEMORY(
         "The device ran out of memory during reconstruction.",
         listOf("Use the Draft quality preset.", "Reduce the scan region size."),
@@ -60,6 +68,8 @@ data class ReconstructionSettings(
     val truncationVoxels: Double = 4.0,
     val minFrames: Int,
     val minViewFraction: Double = 0.2,
+    /** Views needed before a direction counts as observed (dense video: 2; sparse photo captures: 1). */
+    val minViewsPerCoverageBin: Int = 2,
     val minConfidence: Double = 0.25,
     val maxDepth: Double = 2.5,
     /** Remove geometry this many voxels above the detected support plane (the table). */
@@ -68,6 +78,10 @@ data class ReconstructionSettings(
     /** Components smaller than this fraction of the largest are removed as isolated noise. */
     val minComponentFraction: Double = 0.05,
     val checkpointEveryFrames: Int = 20,
+    /** Only extract surface where every cell corner was observed by at least this many frames (rejects one-off outliers). */
+    val minObservationsForSurface: Int = 1,
+    /** Skip depth pixels on occlusion boundaries (see IntegrationParams.rejectDepthEdges). */
+    val rejectDepthEdges: Boolean = false,
     /** Default region size when the capture did not define one, meters. */
     val defaultRoiSize: Double = 1.0,
 ) {
@@ -144,7 +158,7 @@ class ReconstructionPipeline(private val settings: ReconstructionSettings) {
         val roi = source.session.roi?.aabb ?: estimateRoi(source, usable).also {
             warnings += "No scan region was set; it was estimated from the depth data."
         }
-        val coverage = ViewCoverage(roi.center)
+        val coverage = ViewCoverage(roi.center, minViewsPerBin = settings.minViewsPerCoverageBin)
         usable.forEach { coverage.addView(it.pose) }
         val viewFraction = coverage.observedFraction()
         if (viewFraction < settings.minViewFraction) {
@@ -155,7 +169,7 @@ class ReconstructionPipeline(private val settings: ReconstructionSettings) {
         onProgress(Progress(Stage.VALIDATING, 1, 1, "${usable.size} usable frames"))
 
         // --- Integrate ------------------------------------------------------------------------------
-        val params = IntegrationParams(minConfidence = settings.minConfidence, maxDepth = settings.maxDepth)
+        val params = IntegrationParams(minConfidence = settings.minConfidence, maxDepth = settings.maxDepth, rejectDepthEdges = settings.rejectDepthEdges)
         val fingerprint = "${settings.hashCode()}|${usable.size}|${usable.last().timestampNs}|$roi"
         val restored = checkpoints?.load(fingerprint, roi)
         val volume = restored?.first ?: TsdfVolume(settings.voxelSize, settings.voxelSize * settings.truncationVoxels, roi)
@@ -182,7 +196,7 @@ class ReconstructionPipeline(private val settings: ReconstructionSettings) {
         // --- Extract ------------------------------------------------------------------------------
         cancel.throwIfCancelled()
         onProgress(Progress(Stage.EXTRACTING, 0, 1, "Extracting surface"))
-        val surface = SurfaceNets.extract(volume)
+        val surface = SurfaceNets.extract(volume, minObservations = settings.minObservationsForSurface)
         onProgress(Progress(Stage.EXTRACTING, 1, 1, "${surface.mesh.triangleCount} triangles"))
 
         // --- Clean --------------------------------------------------------------------------------

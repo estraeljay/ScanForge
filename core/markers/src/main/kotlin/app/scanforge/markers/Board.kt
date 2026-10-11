@@ -50,6 +50,10 @@ data class BoardSpec(
         val A2 = BoardSpec(PaperSize.A2, 40.0, 10.0)
         val PRESETS = listOf(A4, A3, A2)
 
+        /** Preset by paper name ("A4", "A3", "A2", case-insensitive). */
+        fun preset(name: String): BoardSpec = PRESETS.firstOrNull { it.paper.name.equals(name, ignoreCase = true) }
+            ?: throw IllegalArgumentException("Unknown board size '$name' (use A4, A3 or A2)")
+
         fun fromCode(code: String): BoardSpec {
             val p = code.split("-")
             require(p.size == 4 && p[0] == "SFB1") { "Unknown board code '$code'" }

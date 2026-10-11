@@ -178,3 +178,96 @@ class SyntheticScene(val objects: List<SdfShape>, val ground: SdfShape.Ground? =
         }
     }
 }
+
+/** Deterministic 3-D value noise in [0, 1), used as a matchable surface texture for synthetic MVS tests. */
+object ValueNoise {
+    private fun hash(x: Int, y: Int, z: Int): Double {
+        var h = x * 374761393 + y * 668265263 + z * 1274126177
+        h = (h xor (h ushr 13)) * 1274126177
+        return ((h xor (h ushr 16)) and 0x7fffffff) / 2147483648.0
+    }
+
+    fun at(p: Vec3, cell: Double): Double {
+        val fx = p.x / cell; val fy = p.y / cell; val fz = p.z / cell
+        val x0 = floor(fx).toInt(); val y0 = floor(fy).toInt(); val z0 = floor(fz).toInt()
+        val tx = fx - x0; val ty = fy - y0; val tz = fz - z0
+        fun lerp(a: Double, b: Double, t: Double) = a + (b - a) * (t * t * (3 - 2 * t))
+        val c00 = lerp(hash(x0, y0, z0), hash(x0 + 1, y0, z0), tx); val c10 = lerp(hash(x0, y0 + 1, z0), hash(x0 + 1, y0 + 1, z0), tx)
+        val c01 = lerp(hash(x0, y0, z0 + 1), hash(x0 + 1, y0, z0 + 1), tx); val c11 = lerp(hash(x0, y0 + 1, z0 + 1), hash(x0 + 1, y0 + 1, z0 + 1), tx)
+        return lerp(lerp(c00, c10, ty), lerp(c01, c11, ty), tz)
+    }
+}
+
+/**
+ * Synthetic marker-board captures: the scene's objects stand on a printed board; color images are rendered and marker
+ * corners are projected analytically (with visibility test and pixel noise). Real detection is covered by the markers
+ * module's OpenCV tests; this generator exercises everything after detection. Labelled `source = "synthetic"`.
+ */
+object SyntheticMarkerCapture {
+    fun generate(
+        objects: List<SdfShape>,
+        board: app.scanforge.markers.BoardLayout,
+        k: CameraIntrinsics,
+        target: Vec3,
+        radius: Double,
+        elevationsDeg: List<Double>,
+        framesPerRing: Int,
+        preset: QualityPreset = QualityPreset.DRAFT,
+        cornerNoisePx: Double = 0.3,
+        seed: Int = 1,
+    ): InMemoryCaptureSource {
+        val scene = SyntheticScene(objects, SdfShape.Ground(0.0))
+        val rnd = Random(seed)
+        val frames = ArrayList<FrameRecord>(); val color = HashMap<Int, RgbImage>()
+        var index = 0
+        for (el in elevationsDeg) for (i in 0 until framesPerRing) {
+            val az = 2 * PI * i / framesPerRing + Math.toRadians(el)
+            val e = Math.toRadians(el)
+            val pose = Pose.lookAt(target + Vec3(radius * cos(e) * cos(az), radius * sin(e), radius * cos(e) * sin(az)), target)
+            val rgb = ByteArray(k.width * k.height * 3)
+            for (v in 0 until k.height) for (u in 0 until k.width) {
+                val dir = pose.rotateVector(k.unproject(u.toDouble(), v.toDouble(), 1.0).normalized())
+                val t = scene.trace(pose.translation, dir)
+                val o = (v * k.width + u) * 3
+                val g: Int; val c: IntArray
+                if (t == null) { c = intArrayOf(40, 42, 46) } else {
+                    val p = pose.translation + dir * t
+                    c = if (objects.any { it.distance(p) < 1e-3 }) {
+                        val n = 0.45 * ValueNoise.at(p, 0.008) + 0.35 * ValueNoise.at(p, 0.02) + 0.2 * ValueNoise.at(p, 0.05)
+                        intArrayOf((60 + 170 * n).toInt(), (50 + 140 * n).toInt(), (40 + 110 * n).toInt())
+                    } else {
+                        g = if (board.isBlackAtWorld(p.x, p.z)) 25 else if (onPaper(board, p)) 235 else 120
+                        intArrayOf(g, g, g)
+                    }
+                }
+                rgb[o] = c[0].toByte(); rgb[o + 1] = c[1].toByte(); rgb[o + 2] = c[2].toByte()
+            }
+            val obs = board.markers.mapNotNull { m ->
+                val corners = board.cornersWorld(m.id)
+                val px = corners.map { w ->
+                    val camP = pose.inverse().transformPoint(w)
+                    val pr = k.project(camP) ?: return@mapNotNull null
+                    if (pr.x < 2 || pr.y < 2 || pr.x > k.width - 3 || pr.y > k.height - 3) return@mapNotNull null
+                    val dir = (w - pose.translation)
+                    val hit = scene.trace(pose.translation, dir.normalized()) ?: return@mapNotNull null
+                    if (hit < dir.length() - 1e-3) return@mapNotNull null // hidden by the object
+                    pr
+                }
+                app.scanforge.markers.MarkerObservation(m.id, px.flatMap { listOf(it.x + rnd.nextDouble(-cornerNoisePx, cornerNoisePx), it.y + rnd.nextDouble(-cornerNoisePx, cornerNoisePx)) })
+            }
+            color[index] = RgbImage(k.width, k.height, rgb)
+            frames += FrameRecord(index, 1_000_000_000L + index * 100_000_000L, pose.toArray(), TrackingQuality.TRACKING,
+                colorFile = "color/%06d.jpg".format(index), colorIntrinsics = k, markers = obs)
+            index++
+        }
+        val session = CaptureSession(sessionId = "synthetic-marker-$seed", startedAt = "2026-01-01T00:00:00Z", captureMode = CaptureMode.MARKER,
+            qualityPreset = preset, device = mapOf("model" to "synthetic"), source = "synthetic", board = board.spec.code, boardScale = board.scale)
+        return InMemoryCaptureSource(session, frames, emptyMap(), color)
+    }
+
+    private fun onPaper(board: app.scanforge.markers.BoardLayout, p: Vec3): Boolean {
+        val (cx, cy) = board.centerMm
+        val xMm = p.x * 1000 / board.scale + cx; val yMm = p.z * 1000 / board.scale + cy
+        return xMm in 0.0..board.spec.paper.widthMm && yMm in 0.0..board.spec.paper.heightMm
+    }
+}

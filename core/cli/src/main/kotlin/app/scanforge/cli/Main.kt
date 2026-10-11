@@ -42,6 +42,10 @@ ScanForge 3D developer CLI
 
   synth <capture-dir> [--shape box|cylinder|sphere] [--frames N]
         Write a SYNTHETIC capture dataset (ground truth known) in the on-device capture format.
+  board <out.pdf> [--size a4|a3|a2]
+        Write a printable marker board (no ARCore needed for marker scanning). A2 fits A3-sized objects.
+  synth-marker <capture-dir> [--size a3] [--frames N]
+        Write a SYNTHETIC marker-board capture (rendered photos + analytically projected marker corners).
   reconstruct <capture-dir> <store> --name NAME [--preset draft|standard|high]
         Reconstruct a capture directory into a new project; prints the project id.
   info <store> <project-id> [--unit mm]
@@ -102,6 +106,14 @@ fun main(argv: Array<String>) {
     try {
         when (argv[0]) {
             "synth" -> synth(args)
+            "board" -> {
+                val spec = app.scanforge.markers.BoardSpec.preset(args.options["size"] ?: "a2")
+                val out = File(args.pos(0, "out.pdf"))
+                out.parentFile?.mkdirs()
+                out.writeBytes(app.scanforge.markers.BoardPdf.render(app.scanforge.markers.BoardLayout(spec)))
+                println("Wrote ${spec.code} to $out — print at 100 % (actual size) and check the 100 mm bar")
+            }
+            "synth-marker" -> synthMarker(args)
             "reconstruct" -> reconstruct(args)
             "info" -> info(args)
             "export" -> export(args)
@@ -137,6 +149,20 @@ private fun synth(a: Args) {
     CaptureWriter(dir, mem.session).use { w ->
         for (f in mem.frames) w.append(f.copy(colorFile = null, depthFile = null), mem.loadDepth(f), mem.loadColor(f)?.let(AwtImageDecoder::encodeJpeg))
         println("Wrote ${w.frameCount} SYNTHETIC frames (${w.bytesWritten / 1024} KiB) to $dir")
+    }
+}
+
+private fun synthMarker(a: Args) {
+    val dir = File(a.pos(0, "capture-dir"))
+    require(!File(dir, "frames.jsonl").exists()) { "$dir already contains a capture" }
+    val board = app.scanforge.markers.BoardLayout(app.scanforge.markers.BoardSpec.preset(a.options["size"] ?: "a3"))
+    val perRing = (a.options["frames"]?.toInt() ?: 36) / 3
+    val k = app.scanforge.reconstruction.CameraIntrinsics(520.0, 520.0, 319.5, 239.5, 640, 480)
+    val box = SdfShape.Box(Vec3(0.0, 0.035, 0.0), Vec3(0.05, 0.035, 0.025))
+    val mem = app.scanforge.reconstruction.SyntheticMarkerCapture.generate(listOf(box), board, k, Vec3(0.0, 0.03, 0.0), 0.5, listOf(35.0, 55.0, 75.0), perRing)
+    CaptureWriter(dir, mem.session).use { w ->
+        for (f in mem.frames) w.append(f.copy(colorFile = null), null, mem.loadColor(f)?.let(AwtImageDecoder::encodeJpeg))
+        println("Wrote ${w.frameCount} SYNTHETIC marker-board photos (${w.bytesWritten / 1024} KiB) to $dir")
     }
 }
 

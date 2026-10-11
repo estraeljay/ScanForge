@@ -31,7 +31,7 @@ object SurfaceNets {
 
     private fun cellKey(i: Int, j: Int, k: Int) = TsdfVolume.key(i, j, k)
 
-    fun extract(volume: TsdfVolume, minWeight: Float = 0.05f): ExtractedSurface {
+    fun extract(volume: TsdfVolume, minWeight: Float = 0.05f, minObservations: Int = 1): ExtractedSurface {
         val vs = volume.voxelSize
         val cellVertex = HashMap<Long, Int>()
         val positions = ArrayList<Float>()
@@ -47,7 +47,7 @@ object SurfaceNets {
         fun loadCell(i: Int, j: Int, k: Int): Boolean {
             for (c in 0 until 8) {
                 val ok = volume.withVoxel(i + CORNERS[c][0], j + CORNERS[c][1], k + CORNERS[c][2]) { b, idx ->
-                    if (b.weight[idx] < minWeight) false else {
+                    if (b.weight[idx] < minWeight || (b.observations[idx].toInt() and 0xff) < minObservations) false else {
                         values[c] = b.tsdf[idx]; wts[c] = b.weight[idx]; cw[c] = b.colorWeight[idx]
                         cr[c * 3] = b.color[idx * 3]; cr[c * 3 + 1] = b.color[idx * 3 + 1]; cr[c * 3 + 2] = b.color[idx * 3 + 2]
                         obs[c] = b.observations[idx].toInt() and 0xff

@@ -34,6 +34,7 @@ subprojects {
     tasks.withType<Test>().configureEach {
         useJUnitPlatform()
         maxHeapSize = "2g"
+        listOf("mvs.diag", "mvs.preset", "mvs.samples", "mvs.ncc", "mvs.nb", "mvs.win").forEach { key -> System.getProperty(key)?.let { systemProperty(key, it) } }
         testLogging {
             events("failed", "skipped")
             exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL

@@ -15,7 +15,9 @@ import app.scanforge.project.ProjectStatus
 import app.scanforge.project.ProjectStore
 import app.scanforge.project.ReconstructionInfo
 import app.scanforge.reconstruction.CancellationToken
+import app.scanforge.reconstruction.CaptureMode
 import app.scanforge.reconstruction.CaptureSource
+import app.scanforge.reconstruction.MarkerReconstruction
 import app.scanforge.reconstruction.CheckpointStore
 import app.scanforge.reconstruction.CoverageReport
 import app.scanforge.reconstruction.Progress
@@ -64,8 +66,17 @@ class ScanWorkflow(private val store: ProjectStore) {
                 ),
             )
         }
+        val marker = source.session.captureMode == CaptureMode.MARKER
+        var effectiveSettings = settings
         val result = try {
-            ReconstructionPipeline(settings).run(source, CheckpointStore(store.checkpointDir(projectId)), cancel, onProgress)
+            if (marker) {
+                // No ARCore: camera poses from the printed board, depth from multi-view stereo, then the same fusion.
+                val prepared = MarkerReconstruction.prepare(source, cancel = cancel, onProgress = onProgress)
+                effectiveSettings = MarkerReconstruction.settingsFor(source.session.qualityPreset)
+                ReconstructionPipeline(effectiveSettings).run(prepared.source, null, cancel, onProgress)
+            } else {
+                ReconstructionPipeline(settings).run(source, CheckpointStore(store.checkpointDir(projectId)), cancel, onProgress)
+            }
         } catch (e: ReconstructionException) {
             store.update(projectId) { it.copy(status = ProjectStatus.FAILED, failureReason = e.failure.name.lowercase()) }
             throw e
@@ -75,18 +86,24 @@ class ScanWorkflow(private val store: ProjectStore) {
             doc.model.versions.forEach { File(store.dir(projectId), it.file.path).delete() }
             doc.copy(model = doc.model.copy(versions = emptyList(), currentVersion = 0), measurements = emptyList())
         }
-        store.addModelVersion(projectId, result.mesh, "reconstruction", mapOf("method" to "tsdf_surface_nets", "voxel_size_m" to settings.voxelSize.toString()))
+        val method = if (marker) "marker_board_mvs_tsdf" else "tsdf_surface_nets"
+        store.addModelVersion(projectId, result.mesh, "reconstruction", mapOf("method" to method, "voxel_size_m" to effectiveSettings.voxelSize.toString()))
         File(store.dir(projectId), "model/evidence.bin").writeBytes(result.vertexEvidence)
         val coverageJson = ProjectJson.encodeToJsonElement(CoverageReport.serializer(), result.coverage)
         val doc = store.update(projectId) {
             it.copy(
                 status = ProjectStatus.RECONSTRUCTED,
                 reconstruction = ReconstructionInfo(
-                    "tsdf_surface_nets", settings.voxelSize, result.framesUsed, result.warnings, coverageJson, store.now(),
-                    supportPlane = source.session.groundPlane?.let { g -> g.point + g.normal },
+                    method, effectiveSettings.voxelSize, result.framesUsed, result.warnings, coverageJson, store.now(),
+                    // Marker mode: the board is the support plane (Y = 0).
+                    supportPlane = if (marker) listOf(0.0, 0.0, 0.0, 0.0, 1.0, 0.0) else source.session.groundPlane?.let { g -> g.point + g.normal },
                 ),
                 model = it.model.copy(evidenceFile = "model/evidence.bin"),
-                scale = it.scale.copy(source = if (source.session.source == "synthetic") "external" else it.scale.source),
+                scale = it.scale.copy(source = when {
+                    source.session.source == "synthetic" -> "external"
+                    marker -> "printed_marker"
+                    else -> it.scale.source
+                }),
             )
         }
         return addStandardMeasurements(doc)

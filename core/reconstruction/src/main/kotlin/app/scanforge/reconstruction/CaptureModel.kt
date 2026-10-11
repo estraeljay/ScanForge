@@ -78,6 +78,8 @@ data class FrameRecord(
     @SerialName("mean_depth_confidence") val meanDepthConfidence: Double? = null,
     /** Fraction of the color image with acceptable exposure (0..1), if measured. */
     @SerialName("exposure_ok_fraction") val exposureOkFraction: Double? = null,
+    /** Marker-board mode: ArUco detections in the color image (corners in color-image pixels). */
+    val markers: List<app.scanforge.markers.MarkerObservation>? = null,
 ) {
     val pose: Pose get() = poseFromArray(cameraPose)
 }
@@ -118,6 +120,10 @@ data class CaptureSession(
     val device: Map<String, String> = emptyMap(),
     /** "synthetic" marks generated test data; never set for real captures. */
     val source: String = "device",
+    /** Marker-board mode: board code (e.g. SFB1-A2-40-10). */
+    val board: String? = null,
+    /** Printed size / nominal size, from the user's ruler check of the 100 mm bar (1.0 = exact). */
+    @SerialName("board_scale") val boardScale: Double = 1.0,
 )
 
 @Serializable
@@ -126,6 +132,8 @@ enum class CaptureMode {
     @SerialName("depth") DEPTH,
     /** ARCore poses + color keyframes only; intended for optional desktop photogrammetry. */
     @SerialName("photo") PHOTO,
+    /** No ARCore: plain camera images of an object on a printed marker board; poses from the board, depth by MVS. */
+    @SerialName("marker") MARKER,
 }
 
 @Serializable
