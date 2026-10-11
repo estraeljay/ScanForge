@@ -67,6 +67,8 @@ import app.scanforge.project.ProjectStatus
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
+import app.scanforge.reconstruction.ReconstructionFailure
+import app.scanforge.project.ProjectDocument
 
 @Composable
 fun ProjectDetailScreen(nav: NavController, vm: ProjectViewModel = viewModel()) {
@@ -147,7 +149,7 @@ fun ProjectDetailScreen(nav: NavController, vm: ProjectViewModel = viewModel()) 
 }
 
 @Composable
-private fun StatusPanel(vm: ProjectViewModel, doc: app.scanforge.project.ProjectDocument, onReconstruct: () -> Unit) {
+private fun StatusPanel(vm: ProjectViewModel, doc: ProjectDocument, onReconstruct: () -> Unit) {
     when (doc.status) {
         ProjectStatus.RECONSTRUCTED -> {}
         ProjectStatus.RECONSTRUCTING -> Panel { StatusChip(Status.NEUTRAL, "Reconstruction in progress") }
@@ -157,7 +159,7 @@ private fun StatusPanel(vm: ProjectViewModel, doc: app.scanforge.project.Project
         }
         ProjectStatus.CAPTURED, ProjectStatus.FAILED -> Panel(title = if (doc.status == ProjectStatus.FAILED) "Reconstruction failed" else "Captured") {
             doc.failureReason?.let { r ->
-                val f = runCatching { app.scanforge.reconstruction.ReconstructionFailure.valueOf(r.uppercase()) }.getOrNull()
+                val f = runCatching { ReconstructionFailure.valueOf(r.uppercase()) }.getOrNull()
                 Text(f?.userMessage ?: r, color = SfColors.Bad)
                 f?.recovery?.forEach { Text("• $it", color = SfColors.TextSecondary) }
             }
@@ -169,7 +171,7 @@ private fun StatusPanel(vm: ProjectViewModel, doc: app.scanforge.project.Project
 }
 
 @Composable
-private fun ModelInfo(doc: app.scanforge.project.ProjectDocument, ui: ProjectUi, unit: LengthUnit) {
+private fun ModelInfo(doc: ProjectDocument, ui: ProjectUi, unit: LengthUnit) {
     val v = doc.model.current ?: return
     val f = doc.scale.factor
     Panel(title = "Model") {
@@ -241,7 +243,7 @@ private fun MeasurePanel(vm: ProjectViewModel, ui: ProjectUi, unit: LengthUnit, 
 }
 
 @Composable
-private fun EditPanel(vm: ProjectViewModel, doc: app.scanforge.project.ProjectDocument) {
+private fun EditPanel(vm: ProjectViewModel, doc: ProjectDocument) {
     Panel(title = "Edit (non-destructive; the original scan is kept)") {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             OutlinedButton(onClick = vm::removeSmallPieces) { Text("Remove fragments") }

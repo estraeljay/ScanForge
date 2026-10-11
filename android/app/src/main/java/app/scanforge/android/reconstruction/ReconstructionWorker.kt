@@ -18,6 +18,7 @@ import app.scanforge.reconstruction.ReconstructionFailure
 import app.scanforge.reconstruction.RgbImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import app.scanforge.workflow.Thumbnail
 
 /** Decodes JPEG keyframes with BitmapFactory into the platform-independent RGB format. */
 object AndroidImageDecoder : ImageDecoder {
@@ -60,7 +61,8 @@ class ReconstructionWorker(context: Context, params: WorkerParameters) : Corouti
         /** Renders previews/thumbnail.png from the current model version (used by the project library). */
         fun writeThumbnail(context: Context, projectId: String) {
             val app = context.app
-            val px = app.scanforge.workflow.Thumbnail.render(app.store.loadModel(projectId), 256)
+            // Note: a local named `app` shadows the `app.scanforge` package, so types are imported, never fully qualified.
+            val px = Thumbnail.render(app.store.loadModel(projectId), 256)
             val bmp = android.graphics.Bitmap.createBitmap(px, 256, 256, android.graphics.Bitmap.Config.ARGB_8888)
             val f = java.io.File(app.store.dir(projectId), "previews/thumbnail.png")
             f.parentFile?.mkdirs()

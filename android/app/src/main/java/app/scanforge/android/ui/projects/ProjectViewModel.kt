@@ -28,6 +28,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import java.io.File
 import kotlin.math.PI
+import app.scanforge.android.transfer.TransferService
+import app.scanforge.geometry.Pose
+import app.scanforge.geometry.ConfidenceLevel
+import app.scanforge.geometry.Aabb
 
 enum class MeasureMode { NONE, DISTANCE, CIRCLE, SECTION }
 
@@ -120,7 +124,7 @@ class ProjectViewModel(application: Application, handle: SavedStateHandle) : And
             if (fit.largestAngularGap > Math.toRadians(120.0)) add("Points cover only part of the circle; the estimate may be unreliable.")
             add("Fit residual: %.2f mm RMS over %d points.".format(fit.rmsResidual * 1000, fit.pointCount))
         }
-        val q = q0.copy(reasons = q0.reasons + extra, level = if (fit.largestAngularGap > Math.toRadians(120.0)) app.scanforge.geometry.ConfidenceLevel.LOW else q0.level)
+        val q = q0.copy(reasons = q0.reasons + extra, level = if (fit.largestAngularGap > Math.toRadians(120.0)) ConfidenceLevel.LOW else q0.level)
         val pointList = pts.map { listOf(it.x, it.y, it.z) }
         val n = doc.measurements.size + 1
         val recs = listOf(
@@ -189,7 +193,7 @@ class ProjectViewModel(application: Application, handle: SavedStateHandle) : And
     fun cutBelowSupport() {
         val sp = ui.value.doc?.reconstruction?.supportPlane ?: run { set { it.copy(message = "No support surface was recorded for this scan") }; return }
         val n = Vec3(sp[3], sp[4], sp[5]).normalized()
-        val offset = n dot Vec3(sp[0], sp[1], sp[2]) + 0.002
+        val offset = (n dot Vec3(sp[0], sp[1], sp[2])) + 0.002
         edit("Cutting below support surface", "cut_below_plane", mapOf("offset" to offset.toString())) { MeshOps.cutBelowPlane(it, n, offset) }
     }
 
@@ -204,7 +208,7 @@ class ProjectViewModel(application: Application, handle: SavedStateHandle) : And
         MeshOps.translate(m, -Vec3(b.center.x, b.min.y, b.center.z))
     }
 
-    fun deleteCrop(box: app.scanforge.geometry.Aabb) = edit("Cropping", "crop_to_box") { MeshOps.cropToBox(it, box) }
+    fun deleteCrop(box: Aabb) = edit("Cropping", "crop_to_box") { MeshOps.cropToBox(it, box) }
 
     fun undo() = saveAsync { app.store.undo(projectId); runCatching { ReconstructionWorker.writeThumbnail(getApplication(), projectId) } }
     fun redo() = saveAsync { app.store.redo(projectId); runCatching { ReconstructionWorker.writeThumbnail(getApplication(), projectId) } }
@@ -220,7 +224,7 @@ class ProjectViewModel(application: Application, handle: SavedStateHandle) : And
         viewModelScope.launch(Dispatchers.IO) {
             val dir = File(app.filesDir, "scanforge/exports/${doc.id}").apply { deleteRecursively(); mkdirs() }
             val factor = doc.scale.factor
-            val scaled = if (factor != 1.0) MeshOps.transform(mesh, app.scanforge.geometry.Pose.IDENTITY, factor) else mesh
+            val scaled = if (factor != 1.0) MeshOps.transform(mesh, Pose.IDENTITY, factor) else mesh
             val r = runCatching {
                 MeshExporter.export(scaled, dir, safeName(doc.name), options, comments = listOf("ScanForge 3D project ${doc.id}", "scale_source ${doc.scale.source}")) { step -> set { it.copy(busy = step) } }
             }
@@ -241,7 +245,7 @@ class ProjectViewModel(application: Application, handle: SavedStateHandle) : And
 
     fun sendToBlender(includeCapture: Boolean = false) {
         viewModelScope.launch(Dispatchers.IO) {
-            app.scanforge.android.transfer.TransferService.start(getApplication())
+            TransferService.start(getApplication())
             var err = app.transfer.start()
             if (err == null) err = app.transfer.send(projectId, includeCapture)
             set { it.copy(message = err ?: "Offered to paired computers. In Blender: ScanForge > Check for Scans.") }

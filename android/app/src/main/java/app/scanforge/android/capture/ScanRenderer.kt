@@ -29,6 +29,7 @@ import com.google.ar.core.exceptions.NotYetAvailableException
 import java.util.concurrent.ConcurrentLinkedQueue
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
+import app.scanforge.reconstruction.DepthFrame
 
 /**
  * GL renderer that drives the ARCore session: one session.update() per drawn frame, camera background,
@@ -172,7 +173,7 @@ class ScanRenderer(private val activity: Activity, private val engine: CaptureEn
             frame.acquireCameraImage().use { img -> if (img.width == dims[0] && img.height == dims[1]) nv21 = ArImages.toNv21(img) }
         } catch (_: NotYetAvailableException) {
         }
-        var depth: app.scanforge.reconstruction.DepthFrame? = null
+        var depth: DepthFrame? = null
         var depthK: CameraIntrinsics? = null
         if (engine.wantsDepth && depthSupported) {
             try {

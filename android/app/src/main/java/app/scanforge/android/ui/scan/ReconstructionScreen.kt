@@ -76,7 +76,7 @@ fun ReconstructionScreen(nav: NavController) {
                 }
                 if (i == currentIndex && total > 0) {
                     LinearProgressIndicator(progress = { done.toFloat() / total }, modifier = Modifier.fillMaxWidth())
-                    Text(info.progress.getString(ReconstructionWorker.KEY_MESSAGE) ?: "", color = SfColors.TextSecondary)
+                    Text(info?.progress?.getString(ReconstructionWorker.KEY_MESSAGE) ?: "", color = SfColors.TextSecondary)
                 }
             }
             Text("Progress reflects real processing steps. You can leave this screen; processing continues and resumes after interruptions.",
