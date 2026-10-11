@@ -18,6 +18,7 @@ import app.scanforge.reconstruction.CancellationToken
 import app.scanforge.reconstruction.CaptureMode
 import app.scanforge.reconstruction.CaptureSource
 import app.scanforge.reconstruction.MarkerReconstruction
+import app.scanforge.reconstruction.QualityPreset
 import app.scanforge.reconstruction.CheckpointStore
 import app.scanforge.reconstruction.CoverageReport
 import app.scanforge.reconstruction.Progress
@@ -47,7 +48,8 @@ class ScanWorkflow(private val store: ProjectStore) {
     fun reconstruct(
         projectId: String,
         source: CaptureSource,
-        settings: ReconstructionSettings = ReconstructionSettings.forPreset(source.session.qualityPreset),
+        preset: QualityPreset = source.session.qualityPreset,
+        settings: ReconstructionSettings = ReconstructionSettings.forPreset(preset),
         cancel: CancellationToken = CancellationToken(),
         onProgress: (Progress) -> Unit = {},
     ): ProjectDocument {
@@ -72,7 +74,7 @@ class ScanWorkflow(private val store: ProjectStore) {
             if (marker) {
                 // No ARCore: camera poses from the printed board, depth from multi-view stereo, then the same fusion.
                 val prepared = MarkerReconstruction.prepare(source, cancel = cancel, onProgress = onProgress)
-                effectiveSettings = MarkerReconstruction.settingsFor(source.session.qualityPreset)
+                effectiveSettings = MarkerReconstruction.settingsFor(preset)
                 ReconstructionPipeline(effectiveSettings).run(prepared.source, null, cancel, onProgress)
             } else {
                 ReconstructionPipeline(settings).run(source, CheckpointStore(store.checkpointDir(projectId)), cancel, onProgress)

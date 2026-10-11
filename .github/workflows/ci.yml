@@ -14,8 +14,12 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: "8.14.3" }
       - run: gradle -p core test :cli:installDist
+      - name: Printable marker boards
+        run: for s in a4 a3 a2; do core/cli/build/install/scanforge-cli/bin/scanforge-cli board "boards/scanforge-board-$s.pdf" --size $s; done
       - uses: actions/upload-artifact@v4
         with: { name: core-cli, path: core/cli/build/install/scanforge-cli }
+      - uses: actions/upload-artifact@v4
+        with: { name: marker-boards, path: boards/*.pdf }
 
   blender:
     needs: core

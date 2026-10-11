@@ -27,8 +27,12 @@ data class MarkerSolveReport(
 object MarkerReconstruction {
     data class Prepared(val source: InMemoryCaptureSource, val report: MarkerSolveReport)
 
-    /** Width of the images used for stereo matching (keeps phone processing time in check). */
-    fun mvsWidthFor(preset: QualityPreset) = when (preset) { QualityPreset.DRAFT -> 320; QualityPreset.STANDARD -> 480; QualityPreset.HIGH -> 640 }
+    /**
+     * Width of the images used for stereo matching. Measured on synthetic A3-board captures (100 × 70 × 50 mm box):
+     * matching at 480–640 px with the 7×7 window gave larger errors (footprint +4–7 mm) than 320 px (≤ 1.5 mm) and took
+     * 4× longer, so every preset matches at 320 px.
+     */
+    const val MVS_WIDTH = 320
 
     fun prepare(
         source: CaptureSource,
@@ -62,11 +66,11 @@ object MarkerReconstruction {
         val hw = board.gridWidthMm / 2000 * board.scale; val hd = board.gridHeightMm / 2000 * board.scale
         val roi = Aabb(Vec3(-hw, -0.01, -hd), Vec3(hw, objectHeightMax, hd))
 
-        val targetW = mvsWidthFor(session.qualityPreset)
+        val targetW = MVS_WIDTH
         val views = posed.map { (fr, pose) ->
             val rgb = source.loadColor(fr) ?: throw ReconstructionException(ReconstructionFailure.NO_STEREO_MATCHES, "missing image ${fr.colorFile}")
             val gray = GrayImage.fromRgb(rgb)
-            // Largest integer downsampling that keeps at least the preset's matching width.
+            // Largest integer downsampling that keeps at least the matching width.
             val factor = max(1, gray.width / targetW)
             val small = gray.downsample(factor)
             PosedView(small, kFull.scaledTo(small.width, small.height), pose)
@@ -93,8 +97,13 @@ object MarkerReconstruction {
         return Prepared(InMemoryCaptureSource(outSession, outFrames, depthMap, colorMap), report)
     }
 
-    /** Reconstruction settings for MVS depth: denser, less noisy depth than phone depth-from-motion. */
+    /**
+     * Reconstruction settings for MVS depth: denser, less noisy depth than phone depth-from-motion. High uses Standard's
+     * 4 mm voxels: with 320 px stereo depth, 2.5–3 mm voxels gave more holes and larger errors on synthetic captures (36
+     * and 90 photos). High differs by allowing more photos during capture.
+     */
     fun settingsFor(preset: QualityPreset) = ReconstructionSettings.forPreset(preset).copy(
+        voxelSize = if (preset == QualityPreset.HIGH) 0.004 else ReconstructionSettings.forPreset(preset).voxelSize,
         minFrames = 8, minViewFraction = 0.15, minViewsPerCoverageBin = 1, minObservationsForSurface = 1, maxDepth = 2.0, minConfidence = 0.4,
         // The board defines the support plane exactly (no fitted-plane noise), so the cut can sit closer to it.
         groundCutVoxels = 1.0,

@@ -3,9 +3,9 @@
 ## 1. Automated tests (run in CI or locally)
 | Suite | Command | Count | Environment | Status (2026-10-11) |
 |---|---|---|---|---|
-| Core (geometry, reconstruction, export, project, transfer, workflow) | `cd core && gradle test` | 44 | JDK 17+ | **pass** |
+| Core (geometry, markers, reconstruction incl. MVS, export, project, transfer, workflow) | `cd core && gradle test` | 54 | JDK 17+ | **pass** |
 | Blender add-on (package, import, mesh tools, transfer vs. real server) | `scripts/test_blender.sh <python-with-bpy>` | 26 | `pip install bpy==5.2.2` (Python 3.13) or Blender 5.2's Python | **pass** |
-| Android framework subset type-check | `cd tools/android-framework-check && gradle compileKotlin` | 13 files | JDK 17+, Maven Central | **pass** |
+| Android framework subset type-check | `cd tools/android-framework-check && gradle compileKotlin` | 16 files | JDK 17+, Maven Central | **pass** |
 | Android build | `gradle -p android :app:assembleDebug` | — | Android SDK 35, Google Maven (CI) | **pass in CI**; not run on a device |
 
 What the automated suites cover: unit conversion; pose math; area/volume/topology; component cleanup;
@@ -17,6 +17,9 @@ calibration and reports; TLS pairing, wrong code, approval/denial, token once, a
 chunk/receipt verification, cancellation (410), discovery; Blender: every import format and axis/unit combination,
 scene unit scale, calibration factor, origin modes, duplicates, save/reload, mesh tools, resume after interruption,
 certificate change detection, forged token, and the full UI operator flow Pair → Check → Receive & Import.
+Marker mode: dictionary bit patterns vs. OpenCV, board layout/PDF, real OpenCV detection of a rendered board, planar
+pose and focal estimation under corner noise, end-to-end synthetic marker scan (100 × 70 × 50 mm box, asserted within 3 mm; measured ≤ 1.5 mm),
+print-scale correction, too-few-photos refusal. MVS quality sweeps: `gradle test -Dmvs.diag=true` (MvsDiagnostics).
 
 ## 2. Android test plan (requires devices)
 ### 2.1 Functional
@@ -28,15 +31,21 @@ and every failure reason; leave screen during reconstruction; kill process → r
 tools and unit switching · calibration with a ruler-measured edge · export every format, share, re-import package ·
 transfer: pairing approve/deny, wrong code, revoke, large package (> 200 MB with captures), Wi-Fi drop mid-transfer
 (resume), cancel on each side · phone and tablet layouts, portrait/landscape, TalkBack labels, font scale 200 %.
+Marker mode: board detection on printed A4/A3/A2 boards (matte/glossy paper, lamp glare, low light) · print-scale check
+dialog · automatic photo selection while walking around (count, sharpness) · photo limit per preset · reconstruction on a
+textured object, a plain white object (expected: "No reliable 3D points…") and with the board partly covered · phones
+without ARCore (marker mode must be the only scanning option) · 32-bit (armeabi-v7a) phone if available.
 ### 2.2 Performance
 Per device: fusion benchmark, keyframe write latency, reconstruction time per preset, peak memory, thermal throttling
-over a 3-minute scan.
+over a 3-minute scan. Marker mode: analysis frame rate with detection, MVS time per preset (desktop reference:
+docs/validation), peak memory.
 ### 2.3 Synthetic regression (desktop)
 ```
 CLI=core/cli/build/install/scanforge-cli/bin/scanforge-cli
 for s in box cylinder sphere; do $CLI synth /tmp/c_$s --shape $s; for p in draft standard high; do
   id=$($CLI reconstruct /tmp/c_$s /tmp/store --name $s-$p --preset $p | tail -1); $CLI info /tmp/store $id; done; done
 ```
+Marker mode: `$CLI synth-marker /tmp/m --size a3 [--frames 90]`, then `reconstruct --preset draft|standard|high`.
 Compare with docs/validation/synthetic-accuracy.md.
 
 ## 3. Physical accuracy validation protocol

@@ -13,6 +13,9 @@
 * Objects resting on a surface have an open bottom: volume is not reported for open meshes.
 * Simplification is vertex clustering (fast, coarse); a QEM decimator is planned. Blender's Decimate is available
   in the add-on.
+* Marker-board mode needs a printed board and textured objects. Plain, glossy, transparent or very dark objects give
+  little or no stereo depth. The object's lowest ~1 voxel is removed with the board plane. MVS is slower than depth
+  fusion; phone processing times have not been measured. See docs/marker-scanning.md.
 * Photo mode has no on-device reconstruction; use the desktop workflow.
 * The transfer protocol requires the phone app (or its foreground service) to be running.
 * Blender: only 5.2.2 is tested.
@@ -20,8 +23,8 @@
 ## Troubleshooting
 | Symptom | Likely cause | What to do |
 |---|---|---|
-| "Scanning not supported" | Device not ARCore-certified | Use another device; library/export/transfer still work |
-| Only Photo mode offered | No Depth API | Export captures for desktop photogrammetry |
+| "ARCore depth" option disabled | Device not ARCore-certified or no Depth API | Use **Marker board** scanning (docs/marker-scanning.md) |
+| Marker scan: board not detected | Glare, blur, too little of the board visible | See docs/marker-scanning.md § Troubleshooting |
 | Tracking lost repeatedly | Dark, featureless or fast motion | More light, textured surroundings, move slower |
 | "Insufficient coverage" | Not enough directions observed | Rescan walking all the way around and from above |
 | Mesh has many holes | Weak depth (shiny/dark areas) or High preset with noisy depth | Use Standard, better light, closer distance |

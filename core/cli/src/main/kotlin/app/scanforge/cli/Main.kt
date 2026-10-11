@@ -175,11 +175,10 @@ private fun reconstruct(a: Args) {
     // Projects own their capture (as on the phone), so packages can include it and reconstruction can be re-run.
     captureDir.copyRecursively(store.captureDir(p.id), overwrite = true)
     val source = DirectoryCaptureSource(store.captureDir(p.id), AwtImageDecoder)
-    val preset = a.options["preset"]?.let { QualityPreset.valueOf(it.uppercase()) }
+    val preset = a.options["preset"]?.let { QualityPreset.valueOf(it.uppercase()) } ?: source.session.qualityPreset
     val wf = ScanWorkflow(store)
     var lastStage = ""
-    val settings = app.scanforge.reconstruction.ReconstructionSettings.forPreset(preset ?: source.session.qualityPreset)
-    wf.reconstruct(p.id, source, settings) { pr ->
+    wf.reconstruct(p.id, source, preset) { pr ->
         if (pr.stage.name != lastStage || pr.completed == pr.total) { System.err.println("[${pr.stage}] ${pr.message}"); lastStage = pr.stage.name }
     }
     println(p.id)

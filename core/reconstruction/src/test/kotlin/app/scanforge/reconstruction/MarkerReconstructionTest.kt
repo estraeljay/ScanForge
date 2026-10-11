@@ -35,9 +35,10 @@ class MarkerReconstructionTest {
         println("bounds min=${b.min} max=${b.max}; ${out.size}/${m.vertexCount} vertices outside box+2mm; y of those: " +
             out.map { (it.y * 1000).toInt() }.sorted().let { if (it.isEmpty()) "-" else "${it.first()}..${it.last()} median ${it[it.size / 2]}" } +
             "; z range of those: " + out.map { (it.z * 1000).toInt() }.sorted().let { if (it.isEmpty()) "-" else "${it.first()}..${it.last()}" })
-        close(0.100, b.size.x, 0.006, "width")
-        close(0.050, b.size.z, 0.006, "depth")
-        close(0.070, b.max.y, 0.006, "height above board")
+        close(0.100, b.size.x, 0.003, "width")
+        close(0.050, b.size.z, 0.003, "depth")
+        close(0.070, b.max.y, 0.003, "height above board")
+        assertTrue(out.isEmpty(), "${out.size} vertices more than 2 mm outside the true footprint")
         assertTrue(Stage.TRACKING in stages && Stage.MATCHING in stages && Stage.INTEGRATING in stages)
     }
 

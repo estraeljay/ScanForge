@@ -16,6 +16,10 @@ GPL-3.0-or-later because Blender add-ons that import `bpy` are generally treated
 | Android Gradle Plugin 8.7.3 | Android build | Apache-2.0 | |
 | Blender `bpy` 5.2.2 / Blender 5.2 LTS | add-on runtime and tests | GPL-3.0-or-later (Blender), add-ons importing bpy are typically distributed under GPL | |
 | Python standard library (`ssl`, `http.client`, `zipfile`, `hashlib`) | add-on | PSF | no third-party Python packages bundled |
+| OpenCV Android SDK (`org.opencv:opencv`) 4.14.0 | Android: ArUco marker detection only | Apache-2.0 | adds `libopencv_java4.so` (arm64-v8a, armeabi-v7a kept) |
+| CameraX (`androidx.camera:*`) 1.4.1 | Android: marker-mode camera | Apache-2.0 | |
+| openpnp OpenCV 4.9.0-0 | core `markers` tests only (real ArUco detection on rendered boards) | Apache-2.0 (OpenCV) | test only, not shipped |
+| ArUco DICT_4X4_250 bit patterns | `core/markers` resource | Apache-2.0 (OpenCV) | exported from OpenCV; must match the detector's dictionary |
 | Robolectric `android-all` 15 | `tools/android-framework-check` only | Apache-2.0 (Robolectric) / AOSP | compile-time check, not shipped |
 | COLMAP (optional, user-installed) | desktop photogrammetry workflow | BSD-3-Clause (deps separately licensed) | not bundled |
 

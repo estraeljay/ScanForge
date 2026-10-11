@@ -3,8 +3,10 @@
 ## Android
 | Capability | Requirement | Behaviour when missing |
 |---|---|---|
-| ARCore (Google Play Services for AR) | Supported device that shipped with Google Play; Android ≥ 7.0 (app needs ≥ 8.0) | Scanning disabled; library, measurement, export, import and transfer still work |
-| ARCore Depth API (`RAW_DEPTH_ONLY`) | Device-specific | Depth mode disabled; Photo capture (images + poses) for optional desktop photogrammetry |
+| Rear camera (CameraX) | Any Android ≥ 8.0 phone; arm64-v8a or armeabi-v7a (OpenCV native library) | Scanning disabled |
+| Printed marker board | A4/A3/A2 print (PDF from the app) | Marker scanning not possible; ARCore depth if available |
+| ARCore (Google Play Services for AR) | Supported device that shipped with Google Play; Android ≥ 7.0 (app needs ≥ 8.0) | Only **marker-board** scanning (docs/marker-scanning.md); library, measurement, export, import and transfer still work |
+| ARCore Depth API (`RAW_DEPTH_ONLY`) | Device-specific | ARCore depth mode disabled; marker-board scanning still available |
 | Hardware depth sensor (ToF) | Optional; used when ARCore offers a `REQUIRE_AND_USE` camera config | Depth-from-motion used instead |
 | Rear camera autofocus | Recommended | Warning to keep ≥ 30 cm distance |
 | OpenGL ES 3.0 | Required (manifest) | App not installable |

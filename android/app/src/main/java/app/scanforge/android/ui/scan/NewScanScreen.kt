@@ -109,16 +109,23 @@ fun NewScanScreen(nav: NavController) {
             modifier = Modifier.fillMaxWidth().height(56.dp),
         ) { Text("Continue to scanner") }
     }
-    if (showTutorial) TutorialDialog { showTutorial = false; app.settings.update { it.copy(tutorialSeen = true) } }
+    if (showTutorial) TutorialDialog(marker = mode == "MARKER") { showTutorial = false; app.settings.update { it.copy(tutorialSeen = true) } }
 }
 
 @Composable
-fun TutorialDialog(onDismiss: () -> Unit) {
+fun TutorialDialog(marker: Boolean = false, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Scanning in 5 steps") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (marker) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("1. Print the board at 100 % (actual size), lay it flat and check the 100 mm bar once.")
+                Text("2. Put the object in the middle of the board in even, bright light.")
+                Text("3. Press Start and walk slowly around the object, 35–60 cm away, keeping most of the board in view.")
+                Text("4. Circle again from higher up, then take a few photos from above. Photos are taken automatically.")
+                Text("5. Press Finish. Reconstruction runs on the phone; you can leave the screen.")
+                Text("Objects need visible texture. Plain white, shiny, transparent or very dark surfaces may not reconstruct.", color = SfColors.Warn)
+            } else Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("1. Put the object on a textured table in even, bright light.")
                 Text("2. Move the phone slowly until a surface is detected, then tap where the object stands.")
                 Text("3. Press Start and walk all the way around, 30–80 cm away.")

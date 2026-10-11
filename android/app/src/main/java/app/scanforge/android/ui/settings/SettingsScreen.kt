@@ -90,7 +90,7 @@ fun SettingsScreen() {
                 style = MaterialTheme.typography.bodySmall, color = SfColors.TextSecondary)
         }
     }
-    if (tutorial) TutorialDialog { tutorial = false }
+    if (tutorial) TutorialDialog(marker = true) { tutorial = false }
     deleteCaptureOf?.let { id ->
         ConfirmDialog("Delete source captures?", "Re-running or refining the reconstruction of this project will no longer be possible.", "Delete",
             onConfirm = { app.store.deleteCapture(id); refresh++ }, onDismiss = { deleteCaptureOf = null })

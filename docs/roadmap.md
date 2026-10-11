@@ -27,7 +27,13 @@ Android foreground service + AndroidKeyStore identity 🟡.
 ## Phase 5 — Complete user experience 🟡
 Project library, viewer, editing with undo/redo, tablet layouts, accessibility labels are written; need device QA.
 ⬜ Texture atlas (UV + baked texture) instead of vertex colors. ⬜ Lasso crop in the viewer (box crop exists in the
-ViewModel). ⬜ Printed calibration marker detection (manual reference length works).
+ViewModel).
+
+## Marker-board scanning without ARCore ✅ core / 🟡 app
+ADR 0004. Printable A4/A3/A2 ArUco boards (PDF), focal-length estimation and per-photo planar PnP, plane-sweep MVS
+into the existing TSDF pipeline, print-scale correction: ✅ tested on synthetic photos and real OpenCV detection of
+rendered boards. Android CameraX + OpenCV capture screen: 🟡 compiles in CI, not run on a device.
+**Next:** scan a textured A3-size object with an A2 board and compare with caliper measurements.
 
 ## Phase 6 — Validation and release ⬜
 Device matrix, performance benchmarks, physical accuracy protocol (testing-plan §3), release build signing, Play
