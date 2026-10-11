@@ -30,12 +30,17 @@ import app.scanforge.android.app
 import app.scanforge.android.capability.ScanSupport
 import app.scanforge.android.ui.Routes
 import app.scanforge.android.ui.components.Panel
+import app.scanforge.android.ui.components.Status
+import app.scanforge.android.ui.components.StatusChip
 import app.scanforge.android.ui.components.screenPadding
 import app.scanforge.android.ui.home.HomeViewModel
 import app.scanforge.android.ui.theme.SfColors
 import app.scanforge.project.ObjectCategory
 import app.scanforge.reconstruction.QualityPreset
+import app.scanforge.markers.BoardLayout
+import app.scanforge.markers.BoardPdf
 import app.scanforge.markers.BoardSpec
+import app.scanforge.markers.PaperSize
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -143,16 +148,16 @@ fun BoardPanel() {
             BoardSpec.PRESETS.forEach { b -> FilterChip(selected = spec == b, onClick = { app.settings.update { it.copy(boardSize = b.paper.name) } }, label = { Text(b.paper.name) }) }
         }
         Text(when (spec.paper) {
-            app.scanforge.markers.PaperSize.A4 -> "A4 board: objects up to about 15 × 20 cm footprint."
-            app.scanforge.markers.PaperSize.A3 -> "A3 board: objects up to about 20 × 28 cm footprint."
-            app.scanforge.markers.PaperSize.A2 -> "A2 board: objects up to an A3 footprint (30 × 42 cm). Print at a copy shop if needed."
+            PaperSize.A4 -> "A4 board: objects up to about 15 × 20 cm footprint."
+            PaperSize.A3 -> "A3 board: objects up to about 20 × 28 cm footprint."
+            PaperSize.A2 -> "A2 board: objects up to an A3 footprint (30 × 42 cm). Print at a copy shop if needed."
         }, style = MaterialTheme.typography.bodySmall, color = SfColors.TextSecondary)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { openBoardPdf(context, spec) }) { Text("Print board (PDF)") }
             TextButton(onClick = { checking = true }) { Text("Check print scale") }
         }
-        if (checked) app.scanforge.android.ui.components.StatusChip(app.scanforge.android.ui.components.Status.GOOD, "Print scale checked: %.1f %%".format(scale * 100))
-        else app.scanforge.android.ui.components.StatusChip(app.scanforge.android.ui.components.Status.WARN, "Print scale not checked (assumed 100 %)")
+        if (checked) StatusChip(Status.GOOD, "Print scale checked: %.1f %%".format(scale * 100))
+        else StatusChip(Status.WARN, "Print scale not checked (assumed 100 %)")
     }
     if (checking) {
         var text by remember { mutableStateOf("100") }
@@ -181,7 +186,7 @@ fun BoardPanel() {
 private fun openBoardPdf(context: android.content.Context, spec: BoardSpec) {
     val file = java.io.File(context.filesDir, "scanforge/exports/boards/${spec.code}.pdf")
     file.parentFile?.mkdirs()
-    file.writeBytes(app.scanforge.markers.BoardPdf.render(app.scanforge.markers.BoardLayout(spec)))
+    file.writeBytes(BoardPdf.render(BoardLayout(spec)))
     val uri = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".files", file)
     val view = android.content.Intent(android.content.Intent.ACTION_VIEW).setDataAndType(uri, "application/pdf")
         .addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)

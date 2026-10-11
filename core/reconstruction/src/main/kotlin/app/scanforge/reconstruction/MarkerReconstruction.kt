@@ -96,5 +96,7 @@ object MarkerReconstruction {
     /** Reconstruction settings for MVS depth: denser, less noisy depth than phone depth-from-motion. */
     fun settingsFor(preset: QualityPreset) = ReconstructionSettings.forPreset(preset).copy(
         minFrames = 8, minViewFraction = 0.15, minViewsPerCoverageBin = 1, minObservationsForSurface = 1, maxDepth = 2.0, minConfidence = 0.4,
+        // The board defines the support plane exactly (no fitted-plane noise), so the cut can sit closer to it.
+        groundCutVoxels = 1.0,
     )
 }

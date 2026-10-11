@@ -42,6 +42,7 @@ import app.scanforge.android.ui.components.StatusChip
 import app.scanforge.android.ui.components.humanBytes
 import app.scanforge.android.ui.components.screenPadding
 import app.scanforge.android.ui.theme.SfColors
+import app.scanforge.android.ui.transfer.rememberTransferState
 import app.scanforge.project.ProjectDocument
 import app.scanforge.project.ProjectStatus
 import kotlinx.coroutines.Dispatchers
@@ -73,7 +74,7 @@ fun HomeScreen(nav: NavController, vm: HomeViewModel = viewModel()) {
     LaunchedEffect(Unit) { vm.refresh() }
     val report by vm.report.collectAsStateWithLifecycle()
     val projects by vm.projects.collectAsStateWithLifecycle()
-    val transfer by app.scanforge.android.ui.transfer.rememberTransferState()
+    val transfer by rememberTransferState()
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).screenPadding(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(BuildConfig.APP_NAME, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
         val canScan = report?.support != ScanSupport.NOT_SUPPORTED
