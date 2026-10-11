@@ -1,0 +1,21 @@
+schema_version = "1.0.0"
+
+id = "scanforge3d"
+version = "0.1.0"
+name = "ScanForge 3D"
+tagline = "Receive and import scans from the ScanForge 3D Android app"
+maintainer = "ScanForge 3D contributors"
+type = "add-on"
+
+# Verified only on Blender 5.2.2 LTS (headless tests). Lower this after testing older releases.
+blender_version_min = "5.2.0"
+
+license = ["SPDX:GPL-3.0-or-later"]
+tags = ["Import-Export", "Mesh"]
+
+[permissions]
+network = "Receive scans from the ScanForge 3D Android app over the local network"
+files = "Import scan packages and store received files"
+
+[build]
+paths_exclude_pattern = ["__pycache__/", "/tests/", "*.pyc"]

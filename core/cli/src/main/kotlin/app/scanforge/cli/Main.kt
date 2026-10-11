@@ -46,6 +46,8 @@ ScanForge 3D developer CLI
         Reconstruct a capture directory into a new project; prints the project id.
   info <store> <project-id> [--unit mm]
   export <store> <project-id> <format: ply|obj|stl|glb> <out-dir> [--axis y_up|z_up] [--unit mm|cm|m|in|ft]
+  calibrate <store> <project-id> --measured <m> --reference <m>
+        Record a known-length reference (both in meters) and rescale the model.
   package <store> <project-id> <out.sf3d> [--include-capture]
   serve <state-dir> --offer <file.sf3d> [--name NAME] [--port 47821] [--bind 127.0.0.1]
         [--auto-approve] [--exit-after-receipt]
@@ -102,6 +104,7 @@ fun main(argv: Array<String>) {
             "info" -> info(args)
             "export" -> export(args)
             "package" -> pack(args)
+            "calibrate" -> calibrate(args)
             "serve" -> serve(args)
             else -> fail("Unknown command ${argv[0]}")
         }
@@ -132,10 +135,14 @@ private fun synth(a: Args) {
 }
 
 private fun reconstruct(a: Args) {
-    val source = DirectoryCaptureSource(File(a.pos(0, "capture-dir")), AwtImageDecoder)
+    val captureDir = File(a.pos(0, "capture-dir"))
     val store = ProjectStore(File(a.pos(1, "store")))
     val name = a.options["name"] ?: fail("--name is required")
-    val p = store.create(name, ObjectCategory.OTHER, if (source.session.source == "synthetic") listOf("synthetic") else emptyList())
+    val probe = DirectoryCaptureSource(captureDir, null)
+    val p = store.create(name, ObjectCategory.OTHER, if (probe.session.source == "synthetic") listOf("synthetic") else emptyList())
+    // Projects own their capture (as on the phone), so packages can include it and reconstruction can be re-run.
+    captureDir.copyRecursively(store.captureDir(p.id), overwrite = true)
+    val source = DirectoryCaptureSource(store.captureDir(p.id), AwtImageDecoder)
     val preset = a.options["preset"]?.let { QualityPreset.valueOf(it.uppercase()) }
     val wf = ScanWorkflow(store)
     var lastStage = ""
@@ -172,6 +179,15 @@ private fun export(a: Args) {
     val doc = store.load(id)
     val r = MeshExporter.export(store.loadModel(id), File(a.pos(3, "out-dir")), doc.name.replace(Regex("[^A-Za-z0-9_-]"), "_"), options)
     println("${r.primaryFile} (${r.bytes} bytes, ${r.triangleCount} triangles) validation=${if (r.validation.ok) "ok" else r.validation.problems}")
+}
+
+private fun calibrate(a: Args) {
+    val store = ProjectStore(File(a.pos(0, "store")))
+    val id = a.pos(1, "project-id")
+    val measured = a.options["measured"]?.toDouble() ?: fail("--measured is required")
+    val reference = a.options["reference"]?.toDouble() ?: fail("--reference is required")
+    val doc = store.save(app.scanforge.project.Calibration.addReference(store.load(id), app.scanforge.project.CalibrationMethod.USER_ENTERED, measured, reference, emptyList(), store.now()))
+    println("scale factor ${doc.scale.factor} (${doc.scale.source})")
 }
 
 private fun pack(a: Args) {

@@ -39,7 +39,7 @@ object MeshExporter {
         val files = mutableListOf<File>()
         val primary = when (options.format) {
             ExportFormat.PLY -> File(dir, "$baseName.ply").also { f -> f.outputStream().buffered().use { PlyWriter.write(m, it, colors, meta) } }
-            ExportFormat.STL -> File(dir, "$baseName.stl").also { f -> f.outputStream().buffered().use { StlWriter.write(m, it, "ScanForge 3D ${options.effectiveUnit.symbol}") } }
+            ExportFormat.STL -> File(dir, "$baseName.stl").also { f -> f.outputStream().buffered().use { StlWriter.write(m, it, "ScanForge 3D ${options.effectiveUnit.symbol} ${if (options.effectiveAxis == AxisConvention.Y_UP) "+Y" else "+Z"}") } }
             ExportFormat.OBJ -> ObjWriter.write(m, dir, baseName, colors, meta).also { files += File(dir, "$baseName.mtl") }
             ExportFormat.GLB -> File(dir, "$baseName.glb").also { f ->
                 f.outputStream().buffered().use { GlbWriter.write(m, it, colors, extras = mapOf("units" to "m", "source" to "ScanForge 3D")) }
